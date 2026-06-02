@@ -375,7 +375,7 @@ textarea.note:focus,.modal input:focus,.modal select:focus{outline:none;border-c
    as a Web App, paste its /exec URL below, and re-host this file.
    Leave empty to run in local demo mode.                            */
 const CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxHlQFNQc0a9eQIbnG6u78GrCD3fIZvUroXjIB0FgLFxPGItzxaNKTTjgngfKNw1sY/exec",
+  SCRIPT_URL: "",
   QUEUE_CAP: 10
 };
 const DEFAULT_INTERVALS = [1, 3, 7, 14, 30, 60];
@@ -545,7 +545,7 @@ let state = {
 };
 let curView = "today";
 let calCursor = null;
-let filters = { q:"", cat:"all", diff:"all", blind:false, unsolved:false };
+let filters = { q:"", cat:"all", diff:"all", blind:false, unsolved:false, calShowDone:false };
 let saveTimer = null;
 let reviewSeq = 1;
 let customSeq = 1001;
@@ -875,6 +875,7 @@ function viewCalendar(){
 
   const byDay = {};
   state.reviews.forEach(r=>{
+    if(!filters.calShowDone && r.status==="done") return;   // hide completed (incl. retired) by default
     const d=new Date(r.due+"T00:00:00");
     if(d.getFullYear()===y && d.getMonth()===m){ (byDay[d.getDate()] ||= []).push(r); }
   });
@@ -905,7 +906,8 @@ function viewCalendar(){
     <div class="callegend">
       <span><span class="lg" style="background:#F7E3DF;border:1px solid var(--overdue)"></span>Overdue</span>
       <span><span class="lg" style="background:var(--paper2);border:1px solid var(--ink3)"></span>Due</span>
-      <span><span class="lg" style="background:#EAEEDD;border:1px solid var(--olive)"></span>Done</span>
+      ${filters.calShowDone?'<span><span class="lg" style="background:#EAEEDD;border:1px solid var(--olive)"></span>Done</span>':''}
+      <button class="chip ${filters.calShowDone?'on':''}" onclick="toggleF('calShowDone')">Show completed</button>
     </div>
   </div>
   <div class="weekrow"><div class="wd">Sun</div><div class="wd">Mon</div><div class="wd">Tue</div><div class="wd">Wed</div><div class="wd">Thu</div><div class="wd">Fri</div><div class="wd">Sat</div></div>
