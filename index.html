@@ -1520,7 +1520,9 @@ function seedDemo(){
 
 /* ====================== INIT ====================== */
 function initProblems(seed){
-  const base = PROBLEMS_SEED.concat(ROBLOX_SEED).map(p=>{
+  const codeSeed = PROBLEMS_SEED.concat(ROBLOX_SEED);
+  const seededIds = new Set(codeSeed.map(p=>p.id));
+  const base = codeSeed.map(p=>{
     const s = seed && seed[p.id];
     return { ...p,
       status: s ? s.status : "Todo",
@@ -1530,9 +1532,15 @@ function initProblems(seed){
       retired: !!(s && s.retired) };
   });
   const custom = [];
-  if(seed) Object.values(seed).forEach(s=>{ if(s.id>=1001) custom.push({ ...s, notes:s.notes||"", retired:!!s.retired }); });
+  // Only rows the code does not seed are user-added. Without the seededIds
+  // guard, Roblox ids (2001+) satisfy `>= 1001` and get added a second time.
+  if(seed) Object.values(seed).forEach(s=>{
+    if(s.id >= 1001 && !seededIds.has(s.id)) custom.push({ ...s, notes:s.notes||"", retired:!!s.retired });
+  });
   state.problems = base.concat(custom);
-  const cids = state.problems.filter(p=>p.id>=1001).map(p=>p.id);
+  // customSeq stays in the 1001-1999 band so hand-added problems never collide
+  // with the Roblox range at 2001+.
+  const cids = state.problems.filter(p=>p.id>=1001 && p.id<2000).map(p=>p.id);
   customSeq = (cids.length ? Math.max(...cids) : 1000) + 1;
 }
 function showBanner(html){ document.getElementById("banner-slot").innerHTML = html; }
