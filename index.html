@@ -1281,9 +1281,14 @@ function confMark(c){
   const m = { analogue:["~","analogue only — read before trusting"],
               unverified:["‡","slug derived from title, unverified"],
               derived:["†","slug derived from title, verified by search"],
+              verified:["†","slug derived from title, verified by search"],
               none:["—","no LeetCode equivalent"],
               flagged:["!","FastPrep flags this as not source-backed"] }[c];
-  return m ? `<span class="conf" title="${m[1]}">${m[0]}</span>` : "";
+  if(!m){
+    if(c!=="exact") console.warn(`confMark: unrecognized conf value "${c}"`);
+    return "";
+  }
+  return `<span class="conf" title="${m[1]}">${m[0]}</span>`;
 }
 
 function rbxRow(p){
@@ -1344,14 +1349,14 @@ function viewRoblox(){
     <button class="chip ${filters.rbxDiff==='Hard'?'on':''}" onclick="setRbxDiff('Hard')">Hard</button>
     <button class="chip ${filters.rbxUnsolved?'on':''}" onclick="toggleF('rbxUnsolved')">Unsolved</button>
     <button class="chip ${filters.rbxOnsite?'on rust':''}" onclick="toggleF('rbxOnsite')">Onsite only</button>
-    <button class="chip ${filters.rbxSignal?'on':''}" onclick="toggleF('rbxSignal')">3+ sources</button>
+    <button class="chip ${filters.rbxSignal?'on':''}" onclick="toggleF('rbxSignal')" title="3+ on the combined source-count and GitHub-report score">Strong signal</button>
   </div>
   ${groups || '<div class="empty" style="text-align:center;padding:40px">No problems match these filters.</div>'}
   <div class="sec"><h2><span class="g">§</span> Read before you trust a link</h2></div>
   <div class="caveats">
     <p><b>FastPrep reliability.</b> FastPrep re-audited its legacy author-written Roblox reports and found no original report supporting <i>Phone Battery Discharge Scheduling</i> — a 0% match to verified source material. At least one entry is invented and mislabeled. Read the source note on any FastPrep problem before treating it as real Roblox signal.</p>
     <p><b>Link marks.</b> <span class="conf">~</span> analogue only, shares a pattern but differs in specifics — practice the pattern, don't expect the question. <span class="conf">‡</span> slug derived from the title, unverified. <span class="conf">†</span> derived and verified by search. <span class="conf">—</span> no LeetCode equivalent. <span class="conf">!</span> FastPrep flags it as not source-backed.</p>
-    <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the "Onsite only" filter above isolates them.</p>
+    <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the “Onsite only” filter above isolates them.</p>
     <p><b>Constructed URLs.</b> 27 of the 42 FastPrep links were built from a slug pattern rather than verified. Five of fifteen verified slugs diverge from their displayed titles, so expect roughly a third of the constructed ones to 404. Dimmed FP links are the unverified ones. If one 404s, search the title on FastPrep rather than editing the slug.</p>
     <p><b>Strongest signal.</b> Course Schedule II (all four sources) · Number of Ways to Wear Different Hats (E · G14 · L) · Maximize Distance to Closest Person (G18 · L · T) · Candy Crush (G15 · L · T) · Implement Trie (G7 · L · T) · Design Search Autocomplete System (G5 · L · T) · Design Hit Counter (E · G2 · L) · Number of Recent Calls (E · G2 · L). Highest single counts: Task Scheduler G22, Maximize Distance G18, Candy Crush G15, Hats G14.</p>
   </div>`;
@@ -1539,7 +1544,7 @@ function openSettings(e){
         <div class="mblock">
           <div class="ml">Spaced-repetition intervals</div>
           <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">${inputs}</div>
-          <div class="hint" style="margin-top:12px">Days after the solve date for each review. Changes apply to problems you solve from now on — existing schedules stay put. Use the modal's "Update schedule" to re-date a specific problem.</div>
+          <div class="hint" style="margin-top:12px">Days after the solve date for each review. Changes apply to problems you solve from now on — existing schedules stay put. Use the modal's “Update schedule” to re-date a specific problem.</div>
         </div>
         <div class="mblock">
           <div class="ml">Roblox interval ladder</div>
@@ -1599,7 +1604,8 @@ function bindViewControls(){
   const gd = document.getElementById("g-date");
   if(gd) gd.addEventListener("change", e=>setGoalDate(e.target.value));
   const rq = document.getElementById("fr-q");
-  if(rq) rq.addEventListener("input", e=>{ filters.rbxQ = e.target.value; refresh(); });
+  if(rq){ rq.addEventListener("input", e=>{ filters.rbxQ=e.target.value; renderView(false);
+    const nrq=document.getElementById("fr-q"); if(nrq){nrq.focus(); nrq.setSelectionRange(nrq.value.length,nrq.value.length);} }); }
 }
 function renderView(animate){
   const el = document.getElementById("view");
@@ -1724,7 +1730,7 @@ async function boot(){
       state.reviews = [];
       reviewSeq = 1;
       setSync("err","Sync error — working locally");
-      showBanner(`<div class="banner"><span><b>Couldn't reach your Sheet.</b> Check the deployment URL and that access is set to "Anyone." Working locally for now.</span>
+      showBanner(`<div class="banner"><span><b>Couldn't reach your Sheet.</b> Check the deployment URL and that access is set to “Anyone.” Working locally for now.</span>
         <button onclick="location.reload()">Retry</button></div>`);
     }
   }
