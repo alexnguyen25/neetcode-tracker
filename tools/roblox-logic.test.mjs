@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "node:assert";
 import { loadApp } from "./extract-logic.mjs";
 
 // Simulates a Sheet that already contains rows for code-seeded problems.
@@ -27,4 +27,43 @@ test("hand-added problems above 1000 still load", () => {
   const app = loadApp();
   app.initProblems(sheetRows([1005]));
   assert.ok(app.state.problems.some((p) => p.id === 1005), "1005 must survive");
+});
+
+test("ladderFor gives Roblox problems the compressed ladder", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  assert.deepEqual(app.ladderFor(app.probById(2001)), [1, 2, 4, 7]);
+  assert.deepEqual(app.ladderFor(app.probById(68)), [1, 2, 4, 7], "overlap is Roblox");
+  assert.deepEqual(app.ladderFor(app.probById(1)), [1, 3, 7, 14, 30, 60]);
+});
+
+test("solving a Roblox problem generates exactly 4 reviews", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(2001);
+  p.dateSolved = "2026-08-27";
+  app.genReviews(p);
+  const due = app.state.reviews.filter((r) => r.problemId === 2001).map((r) => r.due);
+  assert.deepEqual(due, ["2026-08-28", "2026-08-29", "2026-08-31", "2026-09-03"]);
+});
+
+test("solving a NeetCode problem still generates 6 reviews", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(1);
+  p.dateSolved = "2026-08-27";
+  app.genReviews(p);
+  assert.equal(app.state.reviews.filter((r) => r.problemId === 1).length, 6);
+});
+
+test("offsetFor does not collapse R5/R6 of an already-solved overlap", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(68);
+  // R1-R4 come from the compressed Roblox ladder...
+  assert.equal(app.offsetFor(p, 1), 1);
+  assert.equal(app.offsetFor(p, 4), 7);
+  // ...but R5/R6 fall back to the global ladder, not to 7.
+  assert.equal(app.offsetFor(p, 5), 30, "R5 must not collapse to 7");
+  assert.equal(app.offsetFor(p, 6), 60, "R6 must not collapse to 7");
 });

@@ -740,6 +740,18 @@ let customSeq = 1001;
 let openId = null;
 
 const intervals = () => state.settings.intervals;
+const rbxIntervals = () => state.settings.rbxIntervals || RBX_INTERVALS;
+const ladderFor = p => (p && isRbx(p.id)) ? rbxIntervals() : intervals();
+// Review numbers past the end of a problem's own ladder fall back to the
+// global ladder at that index. Without this, the nine already-solved overlaps
+// -- which carry six reviews on the old 6-step ladder -- would have R5 and R6
+// silently compressed from +30/+60 to +7.
+function offsetFor(p, num){
+  const L = ladderFor(p);
+  if(L[num-1] != null) return L[num-1];
+  const G = intervals();
+  return G[num-1] != null ? G[num-1] : L[L.length-1];
+}
 
 /* ====================== DATE HELPERS ====================== */
 const pad = n => String(n).padStart(2,"0");
@@ -781,7 +793,7 @@ function scheduleSave(){
 
 /* ====================== SPACED REPETITION ====================== */
 function genReviews(p){
-  intervals().forEach((days, i)=>{
+  ladderFor(p).forEach((days, i)=>{
     state.reviews.push({ id: reviewSeq++, problemId: p.id, num: i+1,
       due: addDaysISO(p.dateSolved, days), status:"due", result:null, doneOn:null });
   });
@@ -1560,12 +1572,15 @@ async function boot(){
     // Wipe any demo data first so it can never bleed into a real sheet (display or save).
     state.reviews = [];
     reviewSeq = 1;
-    state.settings = { intervals: DEFAULT_INTERVALS.slice(), goal: { target: 150, date: null } };
+    state.settings = { intervals: DEFAULT_INTERVALS.slice(), rbxIntervals: RBX_INTERVALS.slice(), goal: { target: 150, date: null } };
     showBanner("");
     try {
       const data = await apiLoad();
       if(data && data.settings){
         if(data.settings.intervals && data.settings.intervals.length===6) state.settings.intervals = data.settings.intervals;
+        if(Array.isArray(data.settings.rbxIntervals) && data.settings.rbxIntervals.length===4
+           && data.settings.rbxIntervals.every(n=>Number.isFinite(n) && n>0))
+          state.settings.rbxIntervals = data.settings.rbxIntervals;
         if(data.settings.goal) state.settings.goal = { target: data.settings.goal.target||150, date: data.settings.goal.date||null };
       }
       const hasProblems = !!(data && data.problems && data.problems.length);
