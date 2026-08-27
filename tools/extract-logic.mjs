@@ -15,7 +15,7 @@ const EXPORTS = [
   "RBX_INTERVALS", "RBX_DATE", "state", "initProblems", "genReviews", "intervals",
   "ladderFor", "offsetFor", "isRbx", "probById", "addDaysISO", "todayISO", "dayDiff",
   "allCats", "solveProblem", "applySolveDate", "reactivateProblem", "rbxSolvedCount",
-  "RBX_GROUPS", "customSeq",
+  "RBX_GROUPS", "customSeq", "nextCustomId",
 ];
 
 export function loadApp() {

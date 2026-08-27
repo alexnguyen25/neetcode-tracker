@@ -869,8 +869,23 @@ function allCats(){
   state.problems.forEach(p=>{ if(!CAT_ORDER.includes(p.cat) && !extra.includes(p.cat)) extra.push(p.cat); });
   return CAT_ORDER.concat(extra);
 }
+// Computes the next available custom problem id in the 1001-1999 band.
+// Returns the id, or null if the band is full.
+function nextCustomId(){
+  const cids = state.problems.filter(p=>p.id>=1001 && p.id<2000).map(p=>p.id);
+  const candidate = (cids.length ? Math.max(...cids) : 1000) + 1;
+  if(candidate <= 1999) return candidate; // Normal case: band not exhausted
+  // Band exhausted at top; scan for lowest gap in 1001-1999
+  const used = new Set(cids);
+  for(let id = 1001; id <= 1999; id++){
+    if(!used.has(id)) return id;
+  }
+  return null; // Band genuinely full
+}
 function addCustomProblem(d){
-  const p = { id: customSeq++, name:d.name, cat:d.cat||"Other", diff:d.diff||"Medium",
+  const id = nextCustomId();
+  if(id === null){ alert("Custom problem band (1001-1999) is full. Delete a problem to add more."); return; }
+  const p = { id, name:d.name, cat:d.cat||"Other", diff:d.diff||"Medium",
     blind:!!d.blind, num:d.num||0, url:d.url||"", status:"Todo", comfort:0, dateSolved:null, notes:"", retired:false };
   state.problems.push(p);
   scheduleSave(); refresh();
@@ -1550,10 +1565,9 @@ function initProblems(seed){
     if(s.id >= 1001 && !seededIds.has(s.id)) custom.push({ ...s, notes:s.notes||"", retired:!!s.retired });
   });
   state.problems = base.concat(custom);
-  // customSeq stays in the 1001-1999 band so hand-added problems never collide
-  // with the Roblox range at 2001+.
-  const cids = state.problems.filter(p=>p.id>=1001 && p.id<2000).map(p=>p.id);
-  customSeq = Math.min((cids.length ? Math.max(...cids) : 1000) + 1, 2000);
+  // customSeq stays in the 1001-1999 band, filling gaps when exhausted at top,
+  // until the band is genuinely full (in which case nextCustomId returns null).
+  customSeq = nextCustomId() || 1001; // Fallback to 1001 if band is full
 }
 function showBanner(html){ document.getElementById("banner-slot").innerHTML = html; }
 

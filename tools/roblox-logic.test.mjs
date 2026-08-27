@@ -68,19 +68,69 @@ test("offsetFor does not collapse R5/R6 of an already-solved overlap", () => {
   assert.equal(app.offsetFor(p, 6), 60, "R6 must not collapse to 7");
 });
 
-test("id 1999 at band boundary does not cause collision on reload", () => {
+test("band not exhausted: with custom ids 1001 and 1005, nextCustomId is 1006", () => {
+  const app = loadApp();
+  const sheet = sheetRows([1001, 1005]);
+  app.initProblems(sheet);
+  const next = app.nextCustomId();
+  assert.equal(next, 1006, "should be max+1 when band has gaps");
+});
+
+test("exhaustion reclaims gaps: with band full except 1500, nextCustomId is 1500", () => {
+  const app = loadApp();
+  // Create a sheet with all ids from 1001-1999 except 1500
+  const ids = [];
+  for (let i = 1001; i <= 1999; i++) {
+    if (i !== 1500) ids.push(i);
+  }
+  const sheet = sheetRows(ids);
+  app.initProblems(sheet);
+  const next = app.nextCustomId();
+  assert.equal(next, 1500, "should reclaim the lowest gap when band is exhausted at top");
+});
+
+test("band completely full: all ids 1001-1999 present, nextCustomId returns null", () => {
+  const app = loadApp();
+  // Create a sheet with all ids from 1001-1999
+  const ids = [];
+  for (let i = 1001; i <= 1999; i++) {
+    ids.push(i);
+  }
+  const sheet = sheetRows(ids);
+  app.initProblems(sheet);
+  const next = app.nextCustomId();
+  assert.equal(next, null, "should return null when band is genuinely full");
+});
+
+test("no duplicate across reload: minting at exhaustion does not repeat on reload", () => {
   const app = loadApp();
   app.initProblems(null);
-  // First reload: set up a Sheet with problem at band boundary
-  const sheet = sheetRows([1999]);
+  // Fill band to 1999
+  const ids = [];
+  for (let i = 1001; i <= 1999; i++) {
+    ids.push(i);
+  }
+  let sheet = sheetRows(ids);
   app.state.problems = [];
   app.initProblems(sheet);
-  const probs1 = app.state.problems.filter(p => p.id >= 1001 && p.id < 2000).map(p => p.id);
-  // Second reload: same Sheet, should not create duplicates
-  app.state.problems = [];
-  app.initProblems(sheet);
-  const probs2 = app.state.problems.filter(p => p.id >= 1001 && p.id < 2000).map(p => p.id);
-  // Both reloads should have exactly the same custom problems (no collision drift)
-  assert.deepEqual([...probs1], [1999], "first reload must have exactly 1999");
-  assert.deepEqual([...probs2], [1999], "second reload must have exactly 1999 (no collision)");
+  // At this point, nextCustomId should return null (band full)
+  // But manually add a problem to test reload behavior
+  const problemAt1001 = app.state.problems.find(p => p.id === 1001);
+  if (problemAt1001) {
+    // Remove one to create a gap for minting
+    app.state.problems = app.state.problems.filter(p => p.id !== 1001);
+    sheet = sheetRows(ids.filter(id => id !== 1001)); // Now 1001 is missing
+    app.state.problems = [];
+    app.initProblems(sheet);
+    const first = app.nextCustomId();
+    // Simulate adding this problem and reloading
+    sheet[first] = { id: first, name: "test", cat: "Arrays & Hashing", diff: "Medium",
+      blind: false, num: 0, url: "", status: "Todo", comfort: 0,
+      dateSolved: null, notes: "", retired: false };
+    // Reload with the minted id in the sheet
+    app.state.problems = [];
+    app.initProblems(sheet);
+    const second = app.nextCustomId();
+    assert.notEqual(first, second, "second mint must not duplicate the first");
+  }
 });
