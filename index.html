@@ -1553,7 +1553,7 @@ function initProblems(seed){
   // customSeq stays in the 1001-1999 band so hand-added problems never collide
   // with the Roblox range at 2001+.
   const cids = state.problems.filter(p=>p.id>=1001 && p.id<2000).map(p=>p.id);
-  customSeq = (cids.length ? Math.max(...cids) : 1000) + 1;
+  customSeq = Math.min((cids.length ? Math.max(...cids) : 1000) + 1, 2000);
 }
 function showBanner(html){ document.getElementById("banner-slot").innerHTML = html; }
 
