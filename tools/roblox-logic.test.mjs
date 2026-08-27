@@ -134,3 +134,13 @@ test("no duplicate across reload: minting at exhaustion does not repeat on reloa
     assert.notEqual(first, second, "second mint must not duplicate the first");
   }
 });
+
+test("rbxSolvedCount counts only solved Roblox problems", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  assert.equal(app.rbxSolvedCount(), 0);
+  app.probById(2001).status = "Solved";
+  app.probById(68).status = "Solved";   // an overlap counts too
+  app.probById(1).status = "Solved";    // a NeetCode-only problem does not
+  assert.equal(app.rbxSolvedCount(), 2);
+});

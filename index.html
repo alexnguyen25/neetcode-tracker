@@ -330,6 +330,12 @@ textarea.note:focus,.modal input:focus,.modal select:focus{outline:none;border-c
   .rright{flex-direction:column;align-items:flex-end;gap:10px}
   .form-grid{grid-template-columns:1fr}
 }
+.loop{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 18px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;opacity:.7}
+.conf{margin-left:5px;font-weight:600;opacity:.6;cursor:help}
+.badge.warn{cursor:help}
+a.unsure{opacity:.45}
+.caveats{font-size:13px;line-height:1.65;max-width:76ch}
+.caveats p{margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -354,6 +360,7 @@ textarea.note:focus,.modal input:focus,.modal select:focus{outline:none;border-c
     <button class="tab" data-v="index"><span class="n">02</span> Index</button>
     <button class="tab" data-v="calendar"><span class="n">03</span> Calendar</button>
     <button class="tab" data-v="record"><span class="n">04</span> Record</button>
+    <button class="tab" data-v="roblox"><span class="n">05</span> Roblox</button>
   </nav>
 
   <div id="banner-slot"></div>
@@ -733,7 +740,7 @@ let state = {
 };
 let curView = "today";
 let calCursor = null;
-let filters = { q:"", cat:"all", diff:"all", blind:false, unsolved:false, calShowDone:false };
+let filters = { q:"", cat:"all", diff:"all", blind:false, unsolved:false, calShowDone:false, rbxQ:"", rbxDiff:"all", rbxUnsolved:false, rbxOnsite:false, rbxSignal:false };
 let saveTimer = null;
 let reviewSeq = 1;
 let customSeq = 1001;
@@ -1255,6 +1262,93 @@ function viewRecord(){
   </div>`;
 }
 
+/* ====================== RENDER: Roblox ====================== */
+function rbxProblems(){ return state.problems.filter(p=>isRbx(p.id)); }
+function rbxSolvedCount(){ return rbxProblems().filter(p=>p.status==="Solved").length; }
+function daysToRbx(){ return Math.max(0, dayDiff(RBX_DATE, todayISO())); }
+
+function confMark(c){
+  if(!c) return "";
+  const m = { analogue:["~","analogue only — read before trusting"],
+              unverified:["‡","slug derived from title, unverified"],
+              derived:["†","slug derived from title, verified by search"],
+              none:["—","no LeetCode equivalent"],
+              flagged:["!","FastPrep flags this as not source-backed"] }[c];
+  return m ? `<span class="conf" title="${m[1]}">${m[0]}</span>` : "";
+}
+
+function rbxRow(p){
+  const m = ROBLOX_META[p.id];
+  const links = [];
+  if(p.url) links.push(`<a href="${p.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">LC</a>`);
+  if(m.fp) links.push(`<a href="${m.fp}" target="_blank" rel="noopener" class="${m.fpVerified?"":"unsure"}" onclick="event.stopPropagation()">FP</a>`);
+  if(m.fp2) links.push(`<a href="${m.fp2}" target="_blank" rel="noopener" class="${m.fpVerified?"":"unsure"}" onclick="event.stopPropagation()">FP2</a>`);
+  return `
+    <tr class="${p.retired?"retired":p.status==="Solved"?"":"todo"}" onclick="openProblem(${p.id})">
+      <td class="c" onclick="event.stopPropagation();toggleSolve(${p.id})">
+        <span class="box ${p.status==="Solved"?"done":""}">${p.status==="Solved"?"✓":""}</span></td>
+      <td><span class="pname">${p.name}</span>${confMark(m.conf)}${m.warn?` <span class="badge warn" title="${m.warn}">⚠</span>`:""}${hasNotes(p)?' <span class="note-dot" title="has notes">✎</span>':''}</td>
+      <td>${diffTag(p.diff)}</td>
+      <td><span class="num">${m.sources}</span></td>
+      <td class="c">${m.onsite?'<span class="badge">onsite</span>':''}</td>
+      <td class="c">${links.join(" ") || '<span class="num">—</span>'}</td>
+      <td class="c">${p.status==="Solved"?comfortDots(p.comfort||0):'<span class="num">—</span>'}</td>
+      <td class="r">${nextReviewCell(p)}</td>
+    </tr>`;
+}
+
+function viewRoblox(){
+  let list = rbxProblems();
+  if(filters.rbxQ){ const q=filters.rbxQ.toLowerCase(); list=list.filter(p=>p.name.toLowerCase().includes(q)); }
+  if(filters.rbxDiff!=="all") list=list.filter(p=>p.diff===filters.rbxDiff);
+  if(filters.rbxUnsolved) list=list.filter(p=>p.status!=="Solved");
+  if(filters.rbxOnsite) list=list.filter(p=>ROBLOX_META[p.id].onsite);
+  if(filters.rbxSignal) list=list.filter(p=>ROBLOX_META[p.id].signal>=3);
+
+  const total = rbxProblems().length, done = rbxSolvedCount(), d = daysToRbx();
+  const groups = RBX_GROUPS.map(g=>{
+    const inG = list.filter(p=>ROBLOX_META[p.id].rcat===g);
+    if(!inG.length) return "";
+    const gTotal = rbxProblems().filter(p=>ROBLOX_META[p.id].rcat===g);
+    const gDone = gTotal.filter(p=>p.status==="Solved").length;
+    return `
+    <div class="sec"><h2><span class="g">§</span> ${g}</h2>
+      <span class="meta">${gDone} of ${gTotal.length} solved</span></div>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th class="c">✓</th><th>Problem</th><th>Difficulty</th><th>Sources</th>
+        <th class="c">Stage</th><th class="c">Links</th><th class="c">Comfort</th><th class="r">Next review</th></tr></thead>
+      <tbody>${inG.map(rbxRow).join("")}</tbody>
+    </table></div>`;
+  }).join("");
+
+  return `
+  <div class="sec"><h2><span class="g">§</span> Roblox superday</h2>
+    <span class="meta">${d===0?"today":`${d} day${d===1?"":"s"} out`} · ${fmtLong(RBX_DATE)} · ${done} of ${total} solved</span></div>
+  <div class="loop">
+    <span>Technical 2 — 5:45p</span><span>Technical 1 — 6:30p</span><span>Comm &amp; Collab — 7:15p</span>
+  </div>
+  <div class="filters">
+    <input type="text" id="fr-q" placeholder="Search the 98…" value="${filters.rbxQ.replace(/"/g,'&quot;')}">
+    <button class="chip ${filters.rbxDiff==='all'?'on':''}" onclick="setRbxDiff('all')">All</button>
+    <button class="chip ${filters.rbxDiff==='Easy'?'on':''}" onclick="setRbxDiff('Easy')">Easy</button>
+    <button class="chip ${filters.rbxDiff==='Medium'?'on':''}" onclick="setRbxDiff('Medium')">Medium</button>
+    <button class="chip ${filters.rbxDiff==='Hard'?'on':''}" onclick="setRbxDiff('Hard')">Hard</button>
+    <button class="chip ${filters.rbxUnsolved?'on':''}" onclick="toggleF('rbxUnsolved')">Unsolved</button>
+    <button class="chip ${filters.rbxOnsite?'on rust':''}" onclick="toggleF('rbxOnsite')">Onsite only</button>
+    <button class="chip ${filters.rbxSignal?'on':''}" onclick="toggleF('rbxSignal')">3+ sources</button>
+  </div>
+  ${groups || '<div class="empty" style="text-align:center;padding:40px">No problems match these filters.</div>'}
+  <div class="sec"><h2><span class="g">§</span> Read before you trust a link</h2></div>
+  <div class="caveats">
+    <p><b>FastPrep reliability.</b> FastPrep re-audited its legacy author-written Roblox reports and found no original report supporting <i>Phone Battery Discharge Scheduling</i> — a 0% match to verified source material. At least one entry is invented and mislabeled. Read the source note on any FastPrep problem before treating it as real Roblox signal.</p>
+    <p><b>Link marks.</b> <span class="conf">~</span> analogue only, shares a pattern but differs in specifics — practice the pattern, don't expect the question. <span class="conf">‡</span> slug derived from the title, unverified. <span class="conf">†</span> derived and verified by search. <span class="conf">—</span> no LeetCode equivalent. <span class="conf">!</span> FastPrep flags it as not source-backed.</p>
+    <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the “Onsite only” filter above isolates them.</p>
+    <p><b>Constructed URLs.</b> 27 of the 42 FastPrep links were built from a slug pattern rather than verified. Five of fifteen verified slugs diverge from their displayed titles, so expect roughly a third of the constructed ones to 404. Dimmed FP links are the unverified ones. If one 404s, search the title on FastPrep rather than editing the slug.</p>
+    <p><b>Strongest signal.</b> Course Schedule II (all four sources) · Number of Ways to Wear Different Hats (E · G14 · L) · Maximize Distance to Closest Person (G18 · L · T) · Candy Crush (G15 · L · T) · Implement Trie (G7 · L · T) · Design Search Autocomplete System (G5 · L · T) · Design Hit Counter (E · G2 · L) · Number of Recent Calls (E · G2 · L). Highest single counts: Task Scheduler G22, Maximize Distance G18, Candy Crush G15, Hats G14.</p>
+  </div>`;
+}
+function setRbxDiff(d){ filters.rbxDiff=d; refresh(); }
+
 /* ====================== MODAL: problem ====================== */
 function openProblem(id){ openId=id; renderModal(id); document.getElementById("scrim").classList.add("open"); }
 function closeModal(){ openId=null; document.getElementById("scrim").classList.remove("open"); document.getElementById("scrim").innerHTML=""; }
@@ -1473,7 +1567,7 @@ function calMove(n){ let {y,m}=calCursor; m+=n; if(m<0){m=11;y--} if(m>11){m=0;y
 function calToday(){ const d=new Date(); calCursor={y:d.getFullYear(),m:d.getMonth()}; refresh(); }
 
 /* ====================== VIEW SWITCH / REFRESH ====================== */
-const RENDERERS = { today:viewToday, index:viewIndex, calendar:viewCalendar, record:viewRecord };
+const RENDERERS = { today:viewToday, index:viewIndex, calendar:viewCalendar, record:viewRecord, roblox:viewRoblox };
 function bindViewControls(){
   const q = document.getElementById("f-q");
   if(q){ q.addEventListener("input", e=>{ filters.q=e.target.value; renderView(false);
@@ -1486,6 +1580,8 @@ function bindViewControls(){
   if(gc) gc.addEventListener("change", e=>setTargetCustom(e.target.value));
   const gd = document.getElementById("g-date");
   if(gd) gd.addEventListener("change", e=>setGoalDate(e.target.value));
+  const rq = document.getElementById("fr-q");
+  if(rq) rq.addEventListener("input", e=>{ filters.rbxQ = e.target.value; refresh(); });
 }
 function renderView(animate){
   const el = document.getElementById("view");
@@ -1673,7 +1769,8 @@ document.addEventListener("keydown", e=>{
 Object.assign(window, { openProblem, closeModal, rateReview, skipReview, snoozeReview, retireProblem, reactivateProblem,
   applySolveDate, saveNote, toggleSolve, setComfort, solveProblem, unsolveProblem, removeProblem,
   setDiff, toggleF, calMove, calToday, setTarget, setTargetCustom, setGoalDate,
-  openConnect, trySession, openAdd, pickDiff, submitAdd, openSettings, saveIntervals, resetIntervals, resetAllData });
+  openConnect, trySession, openAdd, pickDiff, submitAdd, openSettings, saveIntervals, resetIntervals, resetAllData,
+  setRbxDiff });
 
 boot();
 </script>
