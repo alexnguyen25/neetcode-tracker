@@ -13,9 +13,10 @@ const DOM_MARKER = 'document.getElementById("nav")';
 const EXPORTS = [
   "PROBLEMS_SEED", "ROBLOX_SEED", "ROBLOX_META", "CAT_ORDER", "DEFAULT_INTERVALS",
   "RBX_INTERVALS", "RBX_DATE", "state", "initProblems", "genReviews", "intervals",
-  "ladderFor", "offsetFor", "isRbx", "probById", "addDaysISO", "todayISO", "dayDiff",
+  "ladderFor", "offsetFor", "isRbx", "isCustom", "probById", "addDaysISO", "todayISO", "dayDiff",
   "allCats", "solveProblem", "applySolveDate", "reactivateProblem", "rbxSolvedCount",
-  "RBX_GROUPS", "customSeq", "nextCustomId", "recomputeReviewDueDates", "retireProblem",
+  "RBX_GROUPS", "nextCustomId", "recomputeReviewDueDates", "retireProblem",
+  "viewRoblox", "filters",
 ];
 
 // Minimal fake DOM element: permissive get/set for the handful of properties

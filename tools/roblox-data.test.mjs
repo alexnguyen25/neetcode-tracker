@@ -67,6 +67,24 @@ test("isRbx distinguishes Roblox problems from NeetCode ones", () => {
   assert.equal(app.isRbx(1), false, "Contains Duplicate is not");
 });
 
+test("isCustom is false for Roblox ids, true for hand-added ids, false for NeetCode ids", () => {
+  const app = loadApp();
+  assert.equal(app.isCustom(2001), false, "2001 is a seeded Roblox problem, not hand-added");
+  assert.equal(app.isCustom(1005), true, "1005 is in the user-added band and not a Roblox id");
+  assert.equal(app.isCustom(3), false, "3 is a plain NeetCode id");
+});
+
+test("the rbxSignal filter (3+ distinct sources) selects exactly the 8 strongest-signal ids", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  app.filters.rbxSignal = true;
+  const html = app.viewRoblox();
+  const ids = [...html.matchAll(/openProblem\((\d+)\)/g)]
+    .map((m) => Number(m[1]))
+    .sort((a, b) => a - b);
+  assert.deepEqual([...ids], [61, 88, 2001, 2014, 2045, 2046, 2047, 2072]);
+});
+
 test("the three new categories are registered in CAT_ORDER", () => {
   const app = loadApp();
   for (const c of ["Matrix / Grid", "Design / OOP", "SQL"]) {

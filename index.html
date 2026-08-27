@@ -727,6 +727,7 @@ const RBX_GROUPS = ["Matrix / Grid Simulation","Arrays / Intervals / Two Pointer
 const RBX_DATE = "2026-09-08";
 const RBX_INTERVALS = [1, 2, 4, 7];
 const isRbx = id => Object.prototype.hasOwnProperty.call(ROBLOX_META, id);
+const isCustom = id => id >= 1001 && !isRbx(id);
 
 const CAT_ORDER = ["Arrays & Hashing","Two Pointers","Sliding Window","Stack","Binary Search","Linked List","Trees","Tries","Heap / Priority Queue","Backtracking","Graphs","Advanced Graphs","1-D Dynamic Programming","2-D Dynamic Programming","Greedy","Intervals","Math & Geometry","Bit Manipulation","Matrix / Grid","Design / OOP","SQL"];
 
@@ -743,7 +744,6 @@ let calCursor = null;
 let filters = { q:"", cat:"all", diff:"all", blind:false, unsolved:false, calShowDone:false, rbxQ:"", rbxDiff:"all", rbxUnsolved:false, rbxOnsite:false, rbxSignal:false };
 let saveTimer = null;
 let reviewSeq = 1;
-let customSeq = 1001;
 let openId = null;
 
 const intervals = () => state.settings.intervals;
@@ -1065,7 +1065,7 @@ function viewIndex(){
       <td class="c" onclick="event.stopPropagation();toggleSolve(${p.id})">
         <span class="box ${p.status==="Solved"?"done":""}">${p.status==="Solved"?"✓":""}</span></td>
       <td class="c">${p.blind?'<span class="star">✦</span>':''}</td>
-      <td><span class="pname">${p.name}</span>${hasNotes(p)?' <span class="note-dot" title="has notes">✎</span>':''}${p.id>=1001?' <span class="badge">custom</span>':''}${p.retired?' <span class="badge">retired</span>':''}</td>
+      <td><span class="pname">${p.name}</span>${hasNotes(p)?' <span class="note-dot" title="has notes">✎</span>':''}${isCustom(p.id)?' <span class="badge">custom</span>':''}${p.retired?' <span class="badge">retired</span>':''}</td>
       <td class="col-cat">${catTag(p.cat)}</td>
       <td>${diffTag(p.diff)}</td>
       <td class="c">${p.status==="Solved"?comfortDots(p.comfort||0):'<span class="num">—</span>'}</td>
@@ -1317,9 +1317,10 @@ function viewRoblox(){
   if(filters.rbxDiff!=="all") list=list.filter(p=>p.diff===filters.rbxDiff);
   if(filters.rbxUnsolved) list=list.filter(p=>p.status!=="Solved");
   if(filters.rbxOnsite) list=list.filter(p=>ROBLOX_META[p.id].onsite);
-  if(filters.rbxSignal) list=list.filter(p=>ROBLOX_META[p.id].signal>=3);
+  if(filters.rbxSignal) list=list.filter(p=>ROBLOX_META[p.id].sources.split("·").length>=3);
 
   const total = rbxProblems().length, done = rbxSolvedCount(), d = daysToRbx();
+  const rawD = dayDiff(RBX_DATE, todayISO());
   const groups = RBX_GROUPS.map(g=>{
     const inG = list.filter(p=>ROBLOX_META[p.id].rcat===g);
     if(!inG.length) return "";
@@ -1337,7 +1338,7 @@ function viewRoblox(){
 
   return `
   <div class="sec"><h2><span class="g">§</span> Roblox superday</h2>
-    <span class="meta">${d===0?"today":`${d} day${d===1?"":"s"} out`} · ${fmtLong(RBX_DATE)} · ${done} of ${total} solved</span></div>
+    <span class="meta">${rawD<0?"interview passed":d===0?"today":`${d} day${d===1?"":"s"} out`} · ${fmtLong(RBX_DATE)} · ${done} of ${total} solved</span></div>
   <div class="loop">
     <span>Technical 2 — 5:45p</span><span>Technical 1 — 6:30p</span><span>Comm &amp; Collab — 7:15p</span>
   </div>
@@ -1349,7 +1350,7 @@ function viewRoblox(){
     <button class="chip ${filters.rbxDiff==='Hard'?'on':''}" onclick="setRbxDiff('Hard')">Hard</button>
     <button class="chip ${filters.rbxUnsolved?'on':''}" onclick="toggleF('rbxUnsolved')">Unsolved</button>
     <button class="chip ${filters.rbxOnsite?'on rust':''}" onclick="toggleF('rbxOnsite')">Onsite only</button>
-    <button class="chip ${filters.rbxSignal?'on':''}" onclick="toggleF('rbxSignal')" title="3+ on the combined source-count and GitHub-report score">Strong signal</button>
+    <button class="chip ${filters.rbxSignal?'on':''}" onclick="toggleF('rbxSignal')" title="Backed by 3 or more distinct sources">3+ sources</button>
   </div>
   ${groups || '<div class="empty" style="text-align:center;padding:40px">No problems match these filters.</div>'}
   <div class="sec"><h2><span class="g">§</span> Read before you trust a link</h2></div>
@@ -1357,7 +1358,7 @@ function viewRoblox(){
     <p><b>FastPrep reliability.</b> FastPrep re-audited its legacy author-written Roblox reports and found no original report supporting <i>Phone Battery Discharge Scheduling</i> — a 0% match to verified source material. At least one entry is invented and mislabeled. Read the source note on any FastPrep problem before treating it as real Roblox signal.</p>
     <p><b>Link marks.</b> <span class="conf">~</span> analogue only, shares a pattern but differs in specifics — practice the pattern, don't expect the question. <span class="conf">‡</span> slug derived from the title, unverified. <span class="conf">†</span> derived and verified by search. <span class="conf">—</span> no LeetCode equivalent. <span class="conf">!</span> FastPrep flags it as not source-backed.</p>
     <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the “Onsite only” filter above isolates them.</p>
-    <p><b>Constructed URLs.</b> 27 of the 42 FastPrep links were built from a slug pattern rather than verified. Five of fifteen verified slugs diverge from their displayed titles, so expect roughly a third of the constructed ones to 404. Dimmed FP links are the unverified ones. If one 404s, search the title on FastPrep rather than editing the slug.</p>
+    <p><b>Constructed URLs.</b> 27 of the 42 FastPrep links were built from a slug pattern rather than verified. Five of fifteen verified slugs diverge from their displayed titles, so expect roughly a third of the constructed ones to 404. (You'll only find 40 FastPrep links below, not 42 — a few source entries are variants of the same problem, so they collapse to one link here.) Dimmed FP links are the unverified ones. If one 404s, search the title on FastPrep rather than editing the slug.</p>
     <p><b>Strongest signal.</b> Course Schedule II (all four sources) · Number of Ways to Wear Different Hats (E · G14 · L) · Maximize Distance to Closest Person (G18 · L · T) · Candy Crush (G15 · L · T) · Implement Trie (G7 · L · T) · Design Search Autocomplete System (G5 · L · T) · Design Hit Counter (E · G2 · L) · Number of Recent Calls (E · G2 · L). Highest single counts: Task Scheduler G22, Maximize Distance G18, Candy Crush G15, Hats G14.</p>
   </div>`;
 }
@@ -1429,7 +1430,7 @@ function renderModal(id){
         </div>
         <div class="mmeta">
           ${catTag(p.cat)} ${diffTag(p.diff)} ${p.blind?'<span class="star">✦ Blind 75</span>':''}
-          ${p.id>=1001?'<span class="badge">custom</span>':''}
+          ${isCustom(p.id)?'<span class="badge">custom</span>':''}
           ${p.num?`<span class="num">LeetCode #${p.num}</span>`:""}
           ${p.url?`<a class="mlink" href="${p.url}" target="_blank" rel="noopener">Open ↗</a>`:""}
         </div>
@@ -1445,7 +1446,7 @@ function renderModal(id){
         </div>
         <div class="mblock last">
           ${p.status==="Solved"?`<button class="btn ghost" onclick="if(confirm('Mark unsolved and delete all its reviews?')){unsolveProblem(${id});closeModal();refresh();}">Mark unsolved</button>`:""}
-          ${p.id>=1001?`<button class="btn ghost danger" onclick="if(confirm('Delete this custom problem permanently?')){removeProblem(${id});closeModal();refresh();}">Delete problem</button>`:""}
+          ${isCustom(p.id)?`<button class="btn ghost danger" onclick="if(confirm('Delete this custom problem permanently?')){removeProblem(${id});closeModal();refresh();}">Delete problem</button>`:""}
         </div>
       </div>
     </div>`;
@@ -1631,7 +1632,7 @@ function seedDemo(){
   const pick = arr => arr[Math.floor(rnd()*arr.length)];
   const solveOn = (p, daysAgo, recent) => {
     p.status="Solved"; p.dateSolved = addDaysISO(todayISO(), -daysAgo); p.comfort = pick(pool);
-    intervals().forEach((days,i)=>{
+    ladderFor(p).forEach((days,i)=>{
       const due = addDaysISO(p.dateSolved, days);
       const rev = { id: reviewSeq++, problemId:p.id, num:i+1, due, status:"due", result:null, doneOn:null };
       const diff = dayDiff(due, todayISO());
@@ -1685,9 +1686,6 @@ function initProblems(seed){
     if(s.id >= 1001 && !seededIds.has(s.id)) custom.push({ ...s, notes:s.notes||"", retired:!!s.retired });
   });
   state.problems = base.concat(custom);
-  // customSeq stays in the 1001-1999 band, filling gaps when exhausted at top,
-  // until the band is genuinely full (in which case nextCustomId returns null).
-  customSeq = nextCustomId() || 1001; // Fallback to 1001 if band is full
 }
 function showBanner(html){ document.getElementById("banner-slot").innerHTML = html; }
 
