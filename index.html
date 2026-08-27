@@ -914,6 +914,9 @@ function saveIntervals(){
   const vals = [];
   for(let i=0;i<6;i++){ const el=document.getElementById("iv-"+i); vals.push(Math.max(1, parseInt(el.value,10)||DEFAULT_INTERVALS[i])); }
   state.settings.intervals = vals;
+  const rvals = [];
+  for(let i=0;i<4;i++){ const el=document.getElementById("riv-"+i); rvals.push(Math.max(1, parseInt(el.value,10)||RBX_INTERVALS[i])); }
+  state.settings.rbxIntervals = rvals;
   scheduleSave(); closeModal(); refresh();
 }
 function setTarget(v){
@@ -1348,7 +1351,7 @@ function viewRoblox(){
   <div class="caveats">
     <p><b>FastPrep reliability.</b> FastPrep re-audited its legacy author-written Roblox reports and found no original report supporting <i>Phone Battery Discharge Scheduling</i> — a 0% match to verified source material. At least one entry is invented and mislabeled. Read the source note on any FastPrep problem before treating it as real Roblox signal.</p>
     <p><b>Link marks.</b> <span class="conf">~</span> analogue only, shares a pattern but differs in specifics — practice the pattern, don't expect the question. <span class="conf">‡</span> slug derived from the title, unverified. <span class="conf">†</span> derived and verified by search. <span class="conf">—</span> no LeetCode equivalent. <span class="conf">!</span> FastPrep flags it as not source-backed.</p>
-    <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the “Onsite only” filter above isolates them.</p>
+    <p><b>Stage matters.</b> Most of the FastPrep source is OA and phone-screen data — stages already cleared. Only six entries are onsite-tagged; the "Onsite only" filter above isolates them.</p>
     <p><b>Constructed URLs.</b> 27 of the 42 FastPrep links were built from a slug pattern rather than verified. Five of fifteen verified slugs diverge from their displayed titles, so expect roughly a third of the constructed ones to 404. Dimmed FP links are the unverified ones. If one 404s, search the title on FastPrep rather than editing the slug.</p>
     <p><b>Strongest signal.</b> Course Schedule II (all four sources) · Number of Ways to Wear Different Hats (E · G14 · L) · Maximize Distance to Closest Person (G18 · L · T) · Candy Crush (G15 · L · T) · Implement Trie (G7 · L · T) · Design Search Autocomplete System (G5 · L · T) · Design Hit Counter (E · G2 · L) · Number of Recent Calls (E · G2 · L). Highest single counts: Task Scheduler G22, Maximize Distance G18, Candy Crush G15, Hats G14.</p>
   </div>`;
@@ -1524,6 +1527,10 @@ function openSettings(e){
   const inputs = [0,1,2,3,4,5].map(i=>`
     <div><label class="fl">R${i+1} — days after</label>
       <input type="number" id="iv-${i}" value="${iv[i]!=null?iv[i]:DEFAULT_INTERVALS[i]}" min="1" max="365" style="width:100%"></div>`).join("");
+  const riv = rbxIntervals();
+  const rbxInputs = [0,1,2,3].map(i=>`
+    <div><label class="fl">R${i+1} — days after</label>
+      <input type="number" id="riv-${i}" value="${riv[i]!=null?riv[i]:RBX_INTERVALS[i]}" min="1" max="365" style="width:100%"></div>`).join("");
   document.getElementById("scrim").innerHTML = `
     <div class="modal" onclick="event.stopPropagation()">
       <div class="mtop"></div>
@@ -1532,7 +1539,12 @@ function openSettings(e){
         <div class="mblock">
           <div class="ml">Spaced-repetition intervals</div>
           <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">${inputs}</div>
-          <div class="hint" style="margin-top:12px">Days after the solve date for each review. Changes apply to problems you solve from now on — existing schedules stay put. Use the modal's “Update schedule” to re-date a specific problem.</div>
+          <div class="hint" style="margin-top:12px">Days after the solve date for each review. Changes apply to problems you solve from now on — existing schedules stay put. Use the modal's "Update schedule" to re-date a specific problem.</div>
+        </div>
+        <div class="mblock">
+          <div class="ml">Roblox interval ladder</div>
+          <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">${rbxInputs}</div>
+          <div class="hint" style="margin-top:12px">Compressed schedule for the 98 Roblox list problems, so each one comes back three or four times before Sep 8. Problems on both lists use this ladder.</div>
         </div>
         <div class="mblock" style="padding-top:18px">
           <button class="btn" onclick="saveIntervals()">Save intervals</button>
@@ -1540,18 +1552,18 @@ function openSettings(e){
         </div>
         <div class="mblock last" style="padding-top:18px">
           <div class="ml" style="color:var(--brick)">Clear everything</div>
-          <div class="hint" style="margin-bottom:14px">Wipes all solves, reviews, notes, and custom problems back to a blank 150${mode==="synced"?" — and overwrites your connected Sheet to match":""}. Use this to clear leftover demo data. Can't be undone.</div>
+          <div class="hint" style="margin-bottom:14px">Wipes all solves, reviews, notes, and custom problems back to a blank 228${mode==="synced"?" — and overwrites your connected Sheet to match":""}. Use this to clear leftover demo data. Can't be undone.</div>
           <button class="btn danger" onclick="resetAllData()">Clear all data &amp; start fresh</button>
         </div>
       </div>
     </div>`;
   document.getElementById("scrim").classList.add("open");
 }
-function resetIntervals(){ DEFAULT_INTERVALS.forEach((v,i)=>{ document.getElementById("iv-"+i).value=v; }); }
+function resetIntervals(){ DEFAULT_INTERVALS.forEach((v,i)=>{ document.getElementById("iv-"+i).value=v; }); RBX_INTERVALS.forEach((v,i)=>{ document.getElementById("riv-"+i).value=v; }); }
 function resetAllData(){
   const msg = mode==="synced"
-    ? "Clear ALL progress — every solve, review, note, and custom problem — back to a blank 150, and overwrite your connected Sheet to match? This cannot be undone."
-    : "Clear ALL progress back to a blank 150? This cannot be undone.";
+    ? "Clear ALL progress — every solve, review, note, and custom problem — back to a blank 228, and overwrite your connected Sheet to match? This cannot be undone."
+    : "Clear ALL progress back to a blank 228? This cannot be undone.";
   if(!confirm(msg)) return;
   initProblems(null);
   state.reviews = [];
@@ -1712,7 +1724,7 @@ async function boot(){
       state.reviews = [];
       reviewSeq = 1;
       setSync("err","Sync error — working locally");
-      showBanner(`<div class="banner"><span><b>Couldn't reach your Sheet.</b> Check the deployment URL and that access is set to “Anyone.” Working locally for now.</span>
+      showBanner(`<div class="banner"><span><b>Couldn't reach your Sheet.</b> Check the deployment URL and that access is set to "Anyone." Working locally for now.</span>
         <button onclick="location.reload()">Retry</button></div>`);
     }
   }
