@@ -736,7 +736,7 @@ let mode = scriptUrl ? "synced" : "demo";
 let state = {
   problems: [],
   reviews: [],
-  settings: { intervals: DEFAULT_INTERVALS.slice(), goal: { target: 150, date: null } }
+  settings: { intervals: DEFAULT_INTERVALS.slice(), rbxIntervals: RBX_INTERVALS.slice(), goal: { target: 150, date: null } }
 };
 let curView = "today";
 let calCursor = null;
@@ -850,18 +850,24 @@ function reactivateProblem(id){
   p.retired = false;
   state.reviews.filter(r=>r.problemId===id && r.result==="retired").forEach(r=>{
     r.status="due"; r.result=null; r.doneOn=null;
-    r.due = addDaysISO(todayISO(), intervals()[r.num-1] || intervals()[intervals().length-1]);
+    r.due = addDaysISO(todayISO(), offsetFor(p, r.num));
   });
   scheduleSave(); refresh(); if(openId) renderModal(openId);
+}
+// Recomputes the due date of every pending review for p from its (possibly
+// just-changed) dateSolved, using p's own ladder with the offsetFor fallback.
+// Extracted from applySolveDate so it can be exercised without a DOM.
+function recomputeReviewDueDates(p){
+  state.reviews.filter(r=>r.problemId===p.id && r.status==="due").forEach(r=>{
+    r.due = addDaysISO(p.dateSolved, offsetFor(p, r.num));
+  });
 }
 function applySolveDate(id){
   const inp = document.getElementById("solve-date");
   if(!inp || !inp.value) return;
   const p = probById(id); if(!p) return;
   p.dateSolved = inp.value;
-  state.reviews.filter(r=>r.problemId===id && r.status==="due").forEach(r=>{
-    r.due = addDaysISO(p.dateSolved, intervals()[r.num-1] || intervals()[intervals().length-1]);
-  });
+  recomputeReviewDueDates(p);
   scheduleSave(); renderModal(id); refresh();
 }
 function saveNote(id, txt){

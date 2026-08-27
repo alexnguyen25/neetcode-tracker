@@ -135,6 +135,71 @@ test("no duplicate across reload: minting at exhaustion does not repeat on reloa
   }
 });
 
+test("applySolveDate recomputes a Roblox problem's due reviews on the compressed ladder", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(2001);
+  p.status = "Solved";
+  p.dateSolved = "2026-08-01";
+  app.genReviews(p);
+  app.document.getElementById("solve-date").value = "2026-08-27";
+  app.applySolveDate(2001);
+  const due = app.state.reviews.filter((r) => r.problemId === 2001)
+    .sort((a, b) => a.num - b.num).map((r) => r.due);
+  const expected = [1, 2, 4, 7].map((n) => app.addDaysISO("2026-08-27", n));
+  assert.deepEqual([...due], [...expected], "Roblox problem must recompute on [1,2,4,7], not [1,3,7,14]");
+});
+
+test("applySolveDate keeps a NeetCode problem's due reviews on the full six-step ladder", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(1);
+  p.status = "Solved";
+  p.dateSolved = "2026-08-01";
+  app.genReviews(p);
+  app.document.getElementById("solve-date").value = "2026-08-27";
+  app.applySolveDate(1);
+  const due = app.state.reviews.filter((r) => r.problemId === 1)
+    .sort((a, b) => a.num - b.num).map((r) => r.due);
+  const expected = [1, 3, 7, 14, 30, 60].map((n) => app.addDaysISO("2026-08-27", n));
+  assert.deepEqual([...due], [...expected]);
+});
+
+test("applySolveDate does not collapse R5/R6 for an overlap already carrying a six-review chain", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(68); // Roblox overlap (per isRbx), pre-existing six-review chain
+  p.status = "Solved";
+  p.dateSolved = "2026-08-01";
+  app.state.reviews = [1, 2, 3, 4, 5, 6].map((num) => ({
+    id: 9000 + num, problemId: 68, num, due: "2026-08-02", status: "due", result: null, doneOn: null,
+  }));
+  app.document.getElementById("solve-date").value = "2026-08-27";
+  app.applySolveDate(68);
+  const due = app.state.reviews.filter((r) => r.problemId === 68)
+    .sort((a, b) => a.num - b.num).map((r) => r.due);
+  const expected = [1, 2, 4, 7, 30, 60].map((n) => app.addDaysISO("2026-08-27", n));
+  assert.deepEqual([...due], [...expected], "R1-R4 must use [1,2,4,7] and R5/R6 must not collapse from +30/+60 to +7");
+});
+
+test("reactivateProblem re-dates a retired Roblox problem on the compressed ladder", () => {
+  const app = loadApp();
+  app.initProblems(null);
+  const p = app.probById(2001);
+  p.status = "Solved";
+  p.dateSolved = "2026-08-01";
+  p.retired = true;
+  app.state.reviews = [1, 2, 3, 4].map((num) => ({
+    id: 9100 + num, problemId: 2001, num, due: "2026-08-01", status: "done", result: "retired", doneOn: "2026-08-01",
+  }));
+  app.reactivateProblem(2001);
+  const due = app.state.reviews.filter((r) => r.problemId === 2001)
+    .sort((a, b) => a.num - b.num).map((r) => r.due);
+  const today = app.todayISO();
+  const expected = [1, 2, 4, 7].map((n) => app.addDaysISO(today, n));
+  assert.deepEqual([...due], [...expected]);
+});
+
 test("rbxSolvedCount counts only solved Roblox problems", () => {
   const app = loadApp();
   app.initProblems(null);
